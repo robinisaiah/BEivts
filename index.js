@@ -5,12 +5,60 @@ require("dotenv").config();
 const { sql, poolPromise } = require("./db");
 const authMiddleware = require("./middleware");
 const cors = require("cors");
-
 const app = express();
-const HOST = "192.168.0.204";
-const PORT = 4000;
+const HOST = process.env.APP_HOST;
+const PORT = process.env.APP_PORT;
 app.use(express.json());
 app.use(cors({ origin: `http://localhost:3000`, credentials: true }));
+
+app.get("/usersSessionsData", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+
+    // Enable streaming to process large data efficiently
+    const request = pool.request();
+    request.stream = true;
+
+    const usersMap = {}; // Object for storing unique users
+    const formattedData = [];
+
+    request.query(
+      "SELECT u.id, u.name, us.login_time, us.logout_time FROM users u LEFT JOIN user_sessions us ON u.id = us.user_id"
+    );
+
+    request.on("row", (row) => {
+      if (!usersMap[row.id]) {
+        usersMap[row.id] = {
+          id: row.id,
+          name: row.name,
+          sessions: [],
+        };
+        formattedData.push(usersMap[row.id]); // Push reference to array
+      }
+
+      // Add session only if login_time is not null
+      if (row.login_time) {
+        usersMap[row.id].sessions.push({
+          login_time: row.login_time,
+          logout_time: row.logout_time,
+        });
+      }
+    });
+
+    request.on("error", (err) => {
+      console.error("Query Error:", err);
+      res.status(500).json({ error: "Database query failed" });
+    });
+
+    request.on("done", () => {
+      res.json(formattedData);
+    });
+  } catch (err) {
+    console.error("Server Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 
 app.get("/users", authMiddleware, async (req, res) => {
   try {
@@ -22,6 +70,10 @@ app.get("/users", authMiddleware, async (req, res) => {
   }
 });
 
+app.get("/getIvtsOpretorUrl", authMiddleware, async(req, res) => {
+  const getIvtsOpretorUrl = `${HOST}:${PORT}`;
+  res.json(getIvtsOpretorUrl);
+})
 
 // Add a new user
 app.post("/users", authMiddleware, async (req, res) => {
@@ -116,6 +168,8 @@ app.post("/login", async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn }
     );
+
+   
 
     
 
