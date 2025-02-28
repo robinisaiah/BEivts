@@ -11,11 +11,70 @@ const PORT = process.env.APP_PORT;
 app.use(express.json());
 app.use(cors({ origin: `http://localhost:3000`, credentials: true }));
 
+app.get("/filteredUsersSessionsData", async (req, res) => {
+  try {
+    const { fromDate, toDate } = req.query;
+
+    // Validate the date parameters
+    if (!fromDate || !toDate) {
+      return res.status(400).json({ error: "Both fromDate and toDate are required" });
+    }
+
+    const pool = await poolPromise;
+    const request = pool.request();
+    request.stream = true;
+
+    const usersMap = {}; // Object for storing unique users
+    const formattedData = [];
+
+    // Query to filter sessions based on login_time between fromDate and toDate
+    request.query(
+      `SELECT u.id, u.name, us.login_time, us.logout_time 
+       FROM users u 
+       LEFT JOIN user_sessions us ON u.id = us.user_id 
+       WHERE us.login_time BETWEEN @fromDate AND @toDate`
+    );
+
+    // Add parameters for the date range
+    request.input('fromDate', new Date(fromDate));
+    request.input('toDate', new Date(toDate));
+
+    request.on("row", (row) => {
+      if (!usersMap[row.id]) {
+        usersMap[row.id] = {
+          id: row.id,
+          name: row.name,
+          sessions: [],
+        };
+        formattedData.push(usersMap[row.id]); // Push reference to array
+      }
+
+      // Add session only if login_time is not null
+      if (row.login_time) {
+        usersMap[row.id].sessions.push({
+          login_time: row.login_time,
+          logout_time: row.logout_time,
+        });
+      }
+    });
+
+    request.on("error", (err) => {
+      console.error("Query Error:", err);
+      res.status(500).json({ error: "Database query failed" });
+    });
+
+    request.on("done", () => {
+      res.json(formattedData);
+    });
+  } catch (err) {
+    console.error("Server Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 app.get("/usersSessionsData", async (req, res) => {
   try {
     const pool = await poolPromise;
-
-    // Enable streaming to process large data efficiently
     const request = pool.request();
     request.stream = true;
 
