@@ -77,38 +77,74 @@ app.get("/usersSessionsData", async (req, res) => {
     const pool = await poolPromise;
     const request = pool.request();
     request.stream = true;
+    let { name, fromDate, toDate } = req.query;
+    let formattedData = [];
+    
+    let query = `
+    SELECT u.id, u.name, us.login_time, us.logout_time 
+    FROM users u 
+    LEFT JOIN user_sessions us ON u.id = us.user_id 
+    WHERE us.login_time IS NOT NULL
+  `;
 
-    const usersMap = {}; // Object for storing unique users
-    const formattedData = [];
+  // Apply filters dynamically
+  if (name) {
+    query += ` AND u.name LIKE @name`;
+    request.input("name", `%${name}%`);
+  }
 
-    request.query(
-      "SELECT u.id, u.name, us.login_time, us.logout_time FROM users u LEFT JOIN user_sessions us ON u.id = us.user_id"
-    );
+  if (fromDate) {
+    query += ` AND us.login_time >= @fromDate`;
+    request.input("fromDate", new Date(fromDate));
+  }
+
+  if (toDate) {
+    query += ` AND us.login_time <= @toDate`;
+    request.input("toDate", new Date(toDate));
+  }
+
+  query += ` ORDER BY us.login_time ASC;`;
+  request.query(query);
 
     request.on("row", (row) => {
-      if (!usersMap[row.id]) {
-        usersMap[row.id] = {
-          id: row.id,
-          name: row.name,
-          sessions: [],
-        };
-        formattedData.push(usersMap[row.id]); // Push reference to array
-      }
-
-      // Add session only if login_time is not null
       if (row.login_time) {
-        usersMap[row.id].sessions.push({
-          login_time: row.login_time,
-          logout_time: row.logout_time,
-        });
+          const loginTime = new Date(row.login_time);
+          const logoutTime = row.logout_time ? new Date(row.logout_time) : null; // Handle null case
+          let durationString = null;
+  
+          if (logoutTime) {
+              let durationMs = logoutTime - loginTime; // Duration in milliseconds
+  
+              // Convert duration to hours and minutes
+              const hours = Math.floor(durationMs / (1000 * 60 * 60));
+              const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+  
+              // Format duration string
+              durationString = `${hours} : ${minutes}`;
+          }
+  
+          // Assign duration to the row object
+          row.duration = durationString;
+          
+          // Format login_time
+          row.login_time = `${loginTime.getFullYear()}-${String(loginTime.getMonth() + 1).padStart(2, '0')}-${String(loginTime.getDate()).padStart(2, '0')}, ${String(loginTime.getHours()).padStart(2, '0')}:${String(loginTime.getMinutes()).padStart(2, '0')}`;
+          
+          // Format logout_time only if it's not null
+          row.logout_time = logoutTime
+              ? `${logoutTime.getFullYear()}-${String(logoutTime.getMonth() + 1).padStart(2, '0')}-${String(logoutTime.getDate()).padStart(2, '0')}, ${String(logoutTime.getHours()).padStart(2, '0')}:${String(logoutTime.getMinutes()).padStart(2, '0')}`
+              : null;
       }
-    });
-
+  
+      formattedData.push(row);
+  });
+  
+  
+    
     request.on("error", (err) => {
       console.error("Query Error:", err);
       res.status(500).json({ error: "Database query failed" });
     });
-
+    
     request.on("done", () => {
       res.json(formattedData);
     });
@@ -117,6 +153,7 @@ app.get("/usersSessionsData", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
 
 
 app.get("/users", authMiddleware, async (req, res) => {
