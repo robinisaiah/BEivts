@@ -5,11 +5,25 @@ require("dotenv").config();
 const { sql, poolPromise } = require("./db");
 const authMiddleware = require("./middleware");
 const cors = require("cors");
+const cookieParser = require('cookie-parser');
 const app = express();
+app.use(express.json());
+app.use(cookieParser());
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    credentials: true,
+  })
+);
 const HOST = process.env.APP_HOST;
 const PORT = process.env.APP_PORT;
 app.use(express.json());
 app.use(cors({ origin: `http://localhost:3000`, credentials: true }));
+
+const SECRET_KEY = process.env.ACCESS_SECRET || "access_secret";
+const REFRESH_SECRET = process.env.REFRESH_SECRET || "refresh_secret";
+
+
 
 app.get("/filteredUsersSessionsData", async (req, res) => {
   try {
@@ -238,9 +252,24 @@ app.delete("/users/:id", authMiddleware, async (req, res) => {
   }
 });
 
+const generateAccessToken = (user, rememberMe) => {
+  
+  if (!user || !user || user.length === 0) {
+    throw new Error("Invalid user data: user recordset is undefined or empty");
+}
+  return jwt.sign(
+    { id: user.id, username: user.username },
+    SECRET_KEY,
+    { expiresIn: rememberMe ? "7d" : "15m" } // If rememberMe is true, set expiration to 7 days; otherwise, 15 minutes
+  );
+};
+
+const generateRefreshToken = (user) => jwt.sign({ id: user.recordset[0].id, username : user.recordset[0].username }, REFRESH_SECRET, { expiresIn: "30d" });
+
 app.post("/login", async (req, res) => {
   try {
     const { username, password, rememberMe } = req.body;
+    
     const pool = await poolPromise;
     const user = await pool
       .request()
@@ -256,28 +285,30 @@ app.post("/login", async (req, res) => {
       return res.status(400).json({ message: "Invalid Username or Password" });
     }
 
-    const userId = user.recordset[0].id;
-
-    const expiresIn = rememberMe ? "7d" : "1h";
-    const token = jwt.sign(
-      { id: userId, username : user.recordset[0].username},
-      process.env.JWT_SECRET,
-      { expiresIn }
-    );
-
-   
-
-    
-
+    const accessToken = generateAccessToken({id: user.recordset[0].id, user_name : user.recordset[0].username }, rememberMe);
+    const refreshToken = generateRefreshToken(user);
+    res.cookie("refreshToken", refreshToken, { httpOnly: true, secure: true, sameSite: "strict" });
     await pool
       .request()
-      .input("user_id", sql.Int, userId)
+      .input("user_id", sql.Int, user.recordset[0].id)
       .query("INSERT INTO user_sessions (user_id, login_time) VALUES (@user_id, GETDATE())");
 
-    res.json({ message: "Login Successful", token });
+    res.json({ message: "Login Successful", accessToken });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
+});
+
+app.post("/refresh", (req, res) => {
+  const refreshToken = req.cookies.refreshToken;
+  if (!refreshToken) return res.status(401).json({ message: "No refresh token" });
+
+  jwt.verify(refreshToken, REFRESH_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ message: "Invalid refresh token" });
+    console.log("Decoded User:", user);
+    const accessToken = generateAccessToken({id: user.id, user_name: user.username }, false);
+    res.json({ accessToken });
+  });
 });
 
 app.post("/logout", authMiddleware, async (req, res) => {
@@ -287,7 +318,7 @@ app.post("/logout", authMiddleware, async (req, res) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.ACCESS_SECRET);
     const userId = decoded.id;
 
     const pool = await poolPromise;
@@ -296,7 +327,7 @@ app.post("/logout", authMiddleware, async (req, res) => {
       .input("user_id", sql.Int, userId)
       .input("token", sql.VarChar, token)
       .query("WITH LatestSession AS (SELECT TOP 1 id FROM user_sessions WHERE user_id = @user_id ORDER BY login_time DESC) UPDATE user_sessions SET logout_time = GETDATE() WHERE id IN (SELECT id FROM LatestSession)");
-
+      res.clearCookie("refreshToken");
     res.json({ message: "Logout Successful" });
   } catch (err) {
     res.status(500).json({ message: err.message });

@@ -25,4 +25,4 @@ async function insertUser(Name, username, password, role) {
 }
 
 // Example Usage
-insertUser("Robin", "robin1", "12345", "root");
+insertUser("Robin", "robin", "12345", "root");

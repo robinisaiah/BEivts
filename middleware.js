@@ -9,7 +9,7 @@ function authMiddleware(req, res, next) {
     }
 
     try {
-        const verified = jwt.verify(token.replace("Bearer ", ""), process.env.JWT_SECRET);
+        const verified = jwt.verify(token.replace("Bearer ", ""), process.env.ACCESS_SECRET);
         req.user = { id: verified.id, username: verified.username }; // Store id and username in req.user
         next();
     } catch (err) {
