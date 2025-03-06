@@ -1,4 +1,4 @@
-const { sql, poolPromise } = require("./db");
+const { sql, poolPromise } = require("../db");
 const bcrypt = require("bcryptjs");
 
 async function insertUser(Name, username, password, role) {

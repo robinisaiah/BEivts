@@ -1,4 +1,4 @@
-const { sql, poolPromise } = require("./db");
+const { sql, poolPromise } = require("../db");
 
 async function createUsersTable() {
     try {

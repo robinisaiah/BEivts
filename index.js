@@ -2,7 +2,7 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
-const { sql, poolPromise } = require("./db");
+const { sql, poolPromise } = require("./config/db");
 const authMiddleware = require("./middleware");
 const cors = require("cors");
 const cookieParser = require('cookie-parser');
@@ -15,8 +15,7 @@ app.use(
     credentials: true,
   })
 );
-const HOST = process.env.APP_HOST;
-const PORT = process.env.APP_PORT;
+
 app.use(express.json());
 app.use(cors({ origin: `http://localhost:3000`, credentials: true }));
 
@@ -107,15 +106,16 @@ app.get("/usersSessionsData", async (req, res) => {
     request.input("name", `%${name}%`);
   }
 
-  if (fromDate) {
-    query += ` AND us.login_time >= @fromDate`;
+  if (fromDate && toDate) {
+    query += ` AND us.login_time BETWEEN @fromDate AND @toDate`;
     request.input("fromDate", new Date(fromDate));
-  }
-
-  if (toDate) {
-    query += ` AND us.login_time <= @toDate`;
     request.input("toDate", new Date(toDate));
   }
+
+  // if (toDate) {
+  //   query += ` AND us.login_time <= @toDate`;
+  //   request.input("toDate", new Date(toDate));
+  // }
 
   query += ` ORDER BY us.login_time ASC;`;
   request.query(query);
@@ -181,8 +181,7 @@ app.get("/users", authMiddleware, async (req, res) => {
 });
 
 app.get("/getIvtsOpretorUrl", authMiddleware, async(req, res) => {
-  const getIvtsOpretorUrl = `${HOST}:${PORT}`;
-  res.json(getIvtsOpretorUrl);
+ 
 })
 
 // Add a new user
@@ -252,17 +251,7 @@ app.delete("/users/:id", authMiddleware, async (req, res) => {
   }
 });
 
-const generateAccessToken = (user, rememberMe) => {
-  
-  if (!user || !user || user.length === 0) {
-    throw new Error("Invalid user data: user recordset is undefined or empty");
-}
-  return jwt.sign(
-    { id: user.id, username: user.username },
-    SECRET_KEY,
-    { expiresIn: rememberMe ? "7d" : "15m" } // If rememberMe is true, set expiration to 7 days; otherwise, 15 minutes
-  );
-};
+
 
 const generateRefreshToken = (user) => jwt.sign({ id: user.recordset[0].id, username : user.recordset[0].username }, REFRESH_SECRET, { expiresIn: "30d" });
 
@@ -312,27 +301,7 @@ app.post("/refresh", (req, res) => {
 });
 
 app.post("/logout", authMiddleware, async (req, res) => {
-  try {
-    const token =  req.header("Authorization")?.split(" ")[1];
-    if (!token) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    const decoded = jwt.verify(token, process.env.ACCESS_SECRET);
-    const userId = decoded.id;
-
-    const pool = await poolPromise;
-    await pool
-      .request()
-      .input("user_id", sql.Int, userId)
-      .input("token", sql.VarChar, token)
-      .query("WITH LatestSession AS (SELECT TOP 1 id FROM user_sessions WHERE user_id = @user_id ORDER BY login_time DESC) UPDATE user_sessions SET logout_time = GETDATE() WHERE id IN (SELECT id FROM LatestSession)");
-      res.clearCookie("refreshToken");
-    res.json({ message: "Logout Successful" });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
+ });
 
 
 
