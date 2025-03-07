@@ -73,4 +73,30 @@ const deleteUser = async (req, res) => {
   }
 };
 
-module.exports = { getUsers, addUser, updateUser, deleteUser };
+const resetPassword = async(req, res) => {
+  try {
+    const { password } = req.body;
+    const userId = req.params.id;
+    if (!password) {
+      return res.status(400).json({ error: "Password is required" });
+    }
+
+    const pool = await poolPromise;
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const result = await pool.request()
+    .input("id", sql.Int, userId)
+    .input("password", sql.NVarChar, hashedPassword)
+    .query("UPDATE users SET password = @password WHERE id = @id");
+
+    if (result.rowsAffected[0] === 0) {
+      return res.status(404).send({ message: "User not found" });
+    }
+
+    res.status(200).json({ message: "Password reset successfully" });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+module.exports = { getUsers, addUser, updateUser, deleteUser, resetPassword };

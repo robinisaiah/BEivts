@@ -24,7 +24,7 @@ const logIn = async (req, res) => {
   
       const accessToken = generateAccessToken({id: user.recordset[0].id, user_name : user.recordset[0].username, role: user.recordset[0].role }, rememberMe);
       const refreshToken = generateRefreshToken(user);
-      res.cookie("refreshToken", refreshToken, { httpOnly: true, secure: true, sameSite: "strict" });
+      res.cookie("refreshToken", refreshToken, { httpOnly: true, secure: false });
       await pool
         .request()
         .input("user_id", sql.Int, user.recordset[0].id)
@@ -60,4 +60,15 @@ const logOut = async(req, res) => {
     
 }
 
-module.exports = { logIn, logOut  };
+export const refreshToken = (req, res) => {
+  const { refreshToken } = req.cookies;
+  if (!refreshToken) return res.sendStatus(403);
+
+  jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, decoded) => {
+    if (err) return res.sendStatus(403);
+    const newAccessToken = jwt.sign({ userId: decoded.userId }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "15m" });
+    res.json({ accessToken: newAccessToken });
+  });
+};
+
+module.exports = { logIn, logOut, refreshToken  };

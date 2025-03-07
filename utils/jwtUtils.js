@@ -11,10 +11,10 @@ const generateAccessToken = (user, rememberMe) => {
     return jwt.sign(
       { id: user.id, username: user.username },
       SECRET_KEY,
-      { expiresIn: rememberMe ? "7d" : "24h" } // If rememberMe is true, set expiration to 7 days; otherwise, 15 minutes
+      { expiresIn: rememberMe ? "12h" : "15m" } // If rememberMe is true, set expiration to 7 days; otherwise, 15 minutes
     );
   };
 
-  const generateRefreshToken = (user) => jwt.sign({ id: user.recordset[0].id, username : user.recordset[0].username }, REFRESH_SECRET, { expiresIn: "30d" });
+  const generateRefreshToken = (user) => jwt.sign({ id: user.recordset[0].id, username : user.recordset[0].username }, REFRESH_SECRET, { expiresIn: "24h" });
 
 module.exports = { generateAccessToken, generateRefreshToken };
