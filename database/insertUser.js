@@ -1,5 +1,5 @@
-const { sql, poolPromise } = require("../db");
-const bcrypt = require("bcryptjs");
+import { sql, poolPromise } from "../config/db.js";
+import bcrypt from "bcryptjs";
 
 async function insertUser(Name, username, password, role) {
     try {
@@ -25,4 +25,4 @@ async function insertUser(Name, username, password, role) {
 }
 
 // Example Usage
-insertUser("Robin", "robin", "12345", "root");
+insertUser("Robin", "robin1", "12345678", "root");

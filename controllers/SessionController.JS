@@ -1,4 +1,6 @@
-const { sql, poolPromise } = require("../config/db");
+import { sql, poolPromise } from "../config/db.js";
+import dayjs from "dayjs";
+import { format } from "date-fns";
 
 const getFilteredSessions = async (req, res) => {
     try {
@@ -32,9 +34,9 @@ const getFilteredSessions = async (req, res) => {
 
         request.on("row", (row) => {
             if (row.login_time) {
-                const formatDateTime = (date) => 
-                    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}, ` +
-                    `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+
+                const formatDateTime = (date) => dayjs(date).format("YYYY-MM-DD, HH:mm");
+                console.log(format)
 
                 const loginTime = new Date(row.login_time);
                 const logoutTime = row.logout_time ? new Date(row.logout_time) : null;
@@ -80,4 +82,4 @@ const getAllSessions = async (req, res) => {
   }
 };
 
-module.exports = { getFilteredSessions, getAllSessions };
+export { getFilteredSessions, getAllSessions };

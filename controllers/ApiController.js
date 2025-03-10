@@ -1,4 +1,4 @@
-const { sql, poolPromise } = require("../config/db");
+import { sql, poolPromise } from "../config/db.js";
 const HOST = process.env.APP_HOST;
 const PORT = process.env.APP_PORT;
 
@@ -7,4 +7,4 @@ const getIvtsOpretorUrl = async (req, res) => {
     res.json(getIvtsOpretorUrl);
 };
 
-module.exports = { getIvtsOpretorUrl };
+export { getIvtsOpretorUrl };

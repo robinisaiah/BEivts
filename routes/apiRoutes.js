@@ -1,9 +1,9 @@
-const express = require("express");
-const {  getIvtsOpretorUrl } = require("../controllers/ApiController");
-const authMiddleware = require("../middleware/authMiddleware");
+import express from "express";
+import {  getIvtsOpretorUrl } from "../controllers/ApiController.js";
+import authMiddleware from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
 router.get("/getIvtsOpretorUrl", authMiddleware, getIvtsOpretorUrl);
 
-module.exports = router;
+export default router;

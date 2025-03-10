@@ -1,9 +1,9 @@
-const jwt = require("jsonwebtoken");
+import jwt from "jsonwebtoken";
 
 const SECRET_KEY = process.env.ACCESS_SECRET || "ivts_access";
 const REFRESH_SECRET = process.env.REFRESH_SECRET || "ivts_refresh";
 
-const generateAccessToken = (user, rememberMe) => {
+const generateAccessToken = (user) => {
   
     if (!user || !user || user.length === 0) {
       throw new Error("Invalid user data: user recordset is undefined or empty");
@@ -11,10 +11,10 @@ const generateAccessToken = (user, rememberMe) => {
     return jwt.sign(
       { id: user.id, username: user.username },
       SECRET_KEY,
-      { expiresIn: rememberMe ? "12h" : "15m" } // If rememberMe is true, set expiration to 7 days; otherwise, 15 minutes
+      { expiresIn: "1m" } // If rememberMe is true, set expiration to 7 days; otherwise, 15 minutes
     );
   };
 
-  const generateRefreshToken = (user) => jwt.sign({ id: user.recordset[0].id, username : user.recordset[0].username }, REFRESH_SECRET, { expiresIn: "24h" });
+  const generateRefreshToken = (user) => jwt.sign({ id: user.recordset[0].id, username : user.recordset[0].username }, REFRESH_SECRET, { expiresIn: "5m" });
 
-module.exports = { generateAccessToken, generateRefreshToken };
+export { generateAccessToken, generateRefreshToken };

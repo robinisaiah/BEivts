@@ -1,5 +1,5 @@
-const { sql, poolPromise } = require("../config/db");
-const bcrypt = require("bcryptjs");
+import { sql, poolPromise } from "../config/db.js";
+import bcrypt from "bcryptjs";
 
 const getUsers = async (req, res) => {
   try {
@@ -36,21 +36,14 @@ const addUser = async (req, res) => {
 
 const updateUser = async (req, res) => {
   const { id } = req.params;
-  const { name, username, role } = req.body;
+  const { name, role } = req.body;
   try {
     const pool = await poolPromise;
-    const existingUser = await pool.request()
-    .input("username", sql.NVarChar, username)
-    .query("SELECT * FROM users WHERE username = @username");
-    if (existingUser.recordset.length > 0) {
-      return res.status(400).send({ error: "Username already taken. Please choose another one." });
-    }
     const result = await pool.request()
       .input("id", sql.Int, id)
       .input("name", sql.NVarChar, name)
-      .input("username", sql.NVarChar, username)
       .input("role", sql.NVarChar, role)
-      .query("UPDATE users SET name = @name, username = @username, role = @role WHERE id = @id");
+      .query("UPDATE users SET name = @name, role = @role WHERE id = @id");
 
     if (result.rowsAffected[0] === 0) {
       return res.status(404).send({ message: "User not found" });
@@ -99,4 +92,4 @@ const resetPassword = async(req, res) => {
   }
 }
 
-module.exports = { getUsers, addUser, updateUser, deleteUser, resetPassword };
+export { getUsers, addUser, updateUser, deleteUser, resetPassword };

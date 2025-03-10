@@ -1,5 +1,6 @@
-const sql = require("mssql");
-require("dotenv").config();
+import sql from "mssql";
+import * as dotenv from "dotenv";
+dotenv.config();
 
 const config = {
   user: process.env.DB_USER,        // Database username
@@ -22,4 +23,4 @@ const poolPromise = new sql.ConnectionPool(config)
     console.error("❌ Database connection failed! Error:", err);
   });
 
-module.exports = { sql, poolPromise };
+export { sql, poolPromise };

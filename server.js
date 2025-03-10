@@ -1,12 +1,12 @@
-const express = require("express");
-const cors = require("cors");
-const cookieParser = require("cookie-parser");
-require("dotenv").config();
-const userRoutes = require("./routes/userRoutes");
-const sessionRoutes = require("./routes/sessionRoutes");
-const authRoutes = require("./routes/authRoutes");
-const apiRoutes = require("./routes/apiRoutes");
-
+import express from "express";
+import cors from "cors";
+import cookieParser from "cookie-parser";
+import dotenv from "dotenv";
+dotenv.config();
+import userRoutes from "./routes/userRoutes.js";
+import sessionRoutes from "./routes/sessionRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
+import apiRoutes from "./routes/apiRoutes.js";
 
 const app = express();
 

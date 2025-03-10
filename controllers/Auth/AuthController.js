@@ -1,7 +1,7 @@
-const { sql, poolPromise } = require("../../config/db");
-const bcrypt = require("bcryptjs");
-const {  generateAccessToken, generateRefreshToken } = require("../../utils/jwtUtils");
-const jwt = require("jsonwebtoken");
+import { sql, poolPromise } from "../../config/db.js";
+import bcrypt from "bcryptjs";
+import {  generateAccessToken, generateRefreshToken } from "../../utils/jwtUtils.js";
+import jwt from "jsonwebtoken";
 
 const logIn = async (req, res) => {
   try {
@@ -14,17 +14,21 @@ const logIn = async (req, res) => {
         .query("SELECT * FROM users WHERE username = @username");
   
       if (user.recordset.length === 0) {
-        return res.status(400).json({ message: "Invalid Username or Password" });
+        return res.status(401).json({ message: "Invalid Username or Password" });
       }
   
       const validPassword = await bcrypt.compare(password, user.recordset[0].password);
       if (!validPassword) {
-        return res.status(400).json({ message: "Invalid Username or Password" });
+        return res.status(401).json({ message: "Invalid Username or Password" });
       }
   
-      const accessToken = generateAccessToken({id: user.recordset[0].id, user_name : user.recordset[0].username, role: user.recordset[0].role }, rememberMe);
+      const accessToken = generateAccessToken({id: user.recordset[0].id, user_name : user.recordset[0].username, role: user.recordset[0].role });
       const refreshToken = generateRefreshToken(user);
-      res.cookie("refreshToken", refreshToken, { httpOnly: true, secure: false });
+      res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: false, 
+        sameSite: "strict",
+      });
       await pool
         .request()
         .input("user_id", sql.Int, user.recordset[0].id)
@@ -38,10 +42,6 @@ const logIn = async (req, res) => {
 
 const logOut = async(req, res) => {
     try {
-        const token =  req.header("Authorization")?.split(" ")[1];
-        if (!token) {
-          return res.status(401).json({ message: "Unauthorized" });
-        }
     
         const decoded = jwt.verify(token, process.env.ACCESS_SECRET);
         const userId = decoded.id;
@@ -60,8 +60,9 @@ const logOut = async(req, res) => {
     
 }
 
-export const refreshToken = (req, res) => {
-  const { refreshToken } = req.cookies;
+ const refreshToken = (req, res) => {
+  console.log(req.cookies.refreshToken);
+  const { refreshToken } = req.cookies.refreshToken;
   if (!refreshToken) return res.sendStatus(403);
 
   jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, decoded) => {
@@ -71,4 +72,4 @@ export const refreshToken = (req, res) => {
   });
 };
 
-module.exports = { logIn, logOut, refreshToken  };
+export { logIn, logOut, refreshToken  };
