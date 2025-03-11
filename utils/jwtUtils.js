@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 
-const SECRET_KEY = process.env.ACCESS_SECRET || "ivts_access";
+const ACCESS_SECRET = process.env.ACCESS_SECRET || "ivts_access";
 const REFRESH_SECRET = process.env.REFRESH_SECRET || "ivts_refresh";
 
 const generateAccessToken = (user) => {
@@ -9,7 +9,7 @@ const generateAccessToken = (user) => {
   }
   return jwt.sign(
     { id: user.id, username: user.username, role: user.role },
-    SECRET_KEY,
+    ACCESS_SECRET,
     { expiresIn: "15m" }
   );
 };
@@ -19,7 +19,11 @@ const generateRefreshToken = (user) => {
     throw new Error("Invalid user data: user recordset is undefined or empty");
   }
   return jwt.sign(
-    { id: user.recordset[0].id, username: user.recordset[0].username },
+    {
+      id: user.recordset[0].id,
+      username: user.recordset[0].username,
+      role: user.recordset[0].role,
+    },
     REFRESH_SECRET,
     { expiresIn: "24h" }
   );
