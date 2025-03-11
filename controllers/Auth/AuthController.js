@@ -1,12 +1,15 @@
 import { sql, poolPromise } from "../../config/db.js";
 import bcrypt from "bcryptjs";
-import { generateAccessToken, generateRefreshToken } from "../../utils/jwtUtils.js";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+} from "../../utils/jwtUtils.js";
 import jwt from "jsonwebtoken";
 
 const logIn = async (req, res) => {
   try {
     const { username, password } = req.body;
-    
+
     const pool = await poolPromise;
     const user = await pool
       .request()
@@ -17,7 +20,10 @@ const logIn = async (req, res) => {
       return res.status(401).json({ message: "Invalid Username or Password" });
     }
 
-    const validPassword = await bcrypt.compare(password, user.recordset[0].password);
+    const validPassword = await bcrypt.compare(
+      password,
+      user.recordset[0].password
+    );
     if (!validPassword) {
       return res.status(401).json({ message: "Invalid Username or Password" });
     }
@@ -25,23 +31,29 @@ const logIn = async (req, res) => {
     const accessToken = generateAccessToken({
       id: user.recordset[0].id,
       username: user.recordset[0].username,
-      role: user.recordset[0].role
+      role: user.recordset[0].role,
     });
 
     const refreshToken = generateRefreshToken(user);
-    
+
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: false, 
+      secure: false,
       sameSite: "strict",
     });
 
     await pool
       .request()
       .input("user_id", sql.Int, user.recordset[0].id)
-      .query("INSERT INTO user_sessions (user_id, login_time) VALUES (@user_id, GETDATE())");
+      .query(
+        "INSERT INTO user_sessions (user_id, login_time) VALUES (@user_id, GETDATE())"
+      );
 
-    res.json({ message: "Login Successful", accessToken, role: user.recordset[0].role });
+    res.json({
+      message: "Login Successful",
+      accessToken,
+      role: user.recordset[0].role,
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -58,10 +70,7 @@ const logOut = async (req, res) => {
     const userId = decoded.id;
 
     const pool = await poolPromise;
-    await pool
-      .request()
-      .input("user_id", sql.Int, userId)
-      .query(`
+    await pool.request().input("user_id", sql.Int, userId).query(`
         WITH LatestSession AS (
           SELECT TOP 1 id FROM user_sessions 
           WHERE user_id = @user_id 
@@ -89,7 +98,10 @@ const refreshToken = async (req, res) => {
       decoded = jwt.verify(refreshToken, process.env.REFRESH_SECRET);
     } catch (err) {
       console.log("JWT verification failed:", err.name);
-      if (err.name === "JsonWebTokenError" || err.name === "TokenExpiredError") {
+      if (
+        err.name === "JsonWebTokenError" ||
+        err.name === "TokenExpiredError"
+      ) {
         await handleExpiredToken(req, res); // Call a function to handle logout
       }
       return res.sendStatus(403);
@@ -98,7 +110,7 @@ const refreshToken = async (req, res) => {
     const newAccessToken = jwt.sign(
       { id: decoded.id, username: decoded.username },
       process.env.ACCESS_SECRET,
-      { expiresIn: "1m" }
+      { expiresIn: "15m" }
     );
 
     res.json({ accessToken: newAccessToken });
@@ -113,14 +125,11 @@ const handleExpiredToken = async (req, res) => {
   try {
     const refreshToken = req.cookies.refreshToken;
     const decoded = jwt.decode(refreshToken); // Use decode instead of verify
-console.log(decoded);
+    console.log(decoded);
     if (!decoded?.id) return;
 
     const pool = await poolPromise;
-    await pool
-      .request()
-      .input("user_id", sql.Int, decoded.id)
-      .query(`
+    await pool.request().input("user_id", sql.Int, decoded.id).query(`
         WITH LatestSession AS (
           SELECT TOP 1 id FROM user_sessions 
           WHERE user_id = @user_id 
@@ -136,6 +145,5 @@ console.log(decoded);
     console.error("Database Error:", dbError);
   }
 };
-
 
 export { logIn, logOut, refreshToken };

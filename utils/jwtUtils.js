@@ -10,7 +10,7 @@ const generateAccessToken = (user) => {
   return jwt.sign(
     { id: user.id, username: user.username, role: user.role },
     SECRET_KEY,
-    { expiresIn: "1m" } 
+    { expiresIn: "15m" }
   );
 };
 
@@ -21,7 +21,7 @@ const generateRefreshToken = (user) => {
   return jwt.sign(
     { id: user.recordset[0].id, username: user.recordset[0].username },
     REFRESH_SECRET,
-    { expiresIn: "3m" }
+    { expiresIn: "24h" }
   );
 };
 
